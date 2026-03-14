@@ -89,8 +89,11 @@
       .header-hide-mobile { display:none !important; }
       .metric-value-green { font-size:20px; }
       .metric-value { font-size:20px; }
-      .roas-ring { width:64px; height:64px; }
-      .roas-ring-val { font-size:14px; }
+      .roas-ring { width:52px; height:52px; }
+      .roas-ring-val { font-size:13px; }
+      .roas-card { padding:10px !important; }
+      .roas-card .metric-label { font-size:10px; }
+      .roas-card .metric-sub { font-size:10px; }
     }
 
     /* Lead Health section */
@@ -284,8 +287,8 @@
 <!-- Header -->
 <header style="background:#fff;border-bottom:1px solid #e5e7eb;" class="sticky top-0 z-50">
   <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-    <div style="display:flex;flex-direction:column;align-items:flex-start;overflow:hidden;height:36px;">
-      <img src="/static/lumen-logo.png" style="height:160px;margin-top:-62px;" onerror="this.style.display='none'"/>
+    <div style="display:flex;align-items:center;">
+      <img src="/static/lumen-logo.png" style="width:140px;object-fit:contain;" onerror="this.style.display='none'"/>
     </div>
     <div class="flex items-center gap-2">
       <button id="header-past-btn" onclick="showPast()" class="header-action-btn" title="View past campaigns">
@@ -404,17 +407,19 @@
             <p class="metric-value-green mt-2" id="health-revenue">$0</p>
             <p class="metric-sub" id="health-revenue-sub">From converted leads</p>
           </div>
-          <div class="card card-hover p-4" style="display:flex;align-items:center;gap:14px;">
-            <div class="roas-ring" id="roas-ring">
-              <svg viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="28" fill="none" stroke="#f3f4f6" stroke-width="5"/>
-                <circle id="roas-arc" cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round"/>
-              </svg>
-              <span class="roas-ring-val" id="roas-val">0.0x</span>
-            </div>
-            <div>
-              <p class="metric-label">ROAS</p>
-              <p class="metric-sub" style="margin-top:2px;" id="roas-sub">Return on ad spend</p>
+          <div class="card card-hover p-3 roas-card">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="roas-ring" id="roas-ring">
+                <svg viewBox="0 0 64 64">
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="#f3f4f6" stroke-width="5"/>
+                  <circle id="roas-arc" cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round"/>
+                </svg>
+                <span class="roas-ring-val" id="roas-val">0.0x</span>
+              </div>
+              <div style="min-width:0;">
+                <p class="metric-label">ROAS</p>
+                <p class="metric-sub" style="margin-top:2px;" id="roas-sub">Return on ad spend</p>
+              </div>
             </div>
           </div>
           <div class="card card-hover p-4">
