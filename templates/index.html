@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lumen — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --red:#6128DB; --red-dark:#4e1fb3; --red-pale:#f3eeff; --red-border:#d4bfff; --red-mist:#faf9fc; --green:#16a34a; --green-pale:#f0fdf4; --green-border:#bbf7d0; }
+    * { font-family:'Inter',sans-serif; }
+    body { background:#fafafa; color:#111; }
+
+    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; }
+    .card-hover { transition:box-shadow .2s,transform .2s; }
+    .card-hover:hover { box-shadow:0 4px 20px rgba(0,0,0,.06); transform:translateY(-1px); }
+
+    .section-label { font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#9ca3af; margin-bottom:12px; }
+    .metric-value  { font-size:26px; font-weight:700; color:#111; line-height:1; }
+    .metric-value-green { font-size:26px; font-weight:700; color:var(--green); line-height:1; }
+    .metric-label  { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
+    .metric-sub    { font-size:12px; color:#999; margin-top:3px; }
+
+    /* Live badge */
+    .badge-live     { display:inline-flex; align-items:center; gap:8px; border-radius:999px; font-size:13px; font-weight:600; letter-spacing:.04em; padding:7px 16px; }
+    .badge-live-on  { background:var(--green-pale); border:1px solid var(--green-border); color:var(--green); }
+    .badge-live-off { background:#fefce8; border:1px solid #fde047; color:#854d0e; }
+    .live-dot-green  { width:9px; height:9px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; flex-shrink:0; }
+    .live-dot-yellow { width:9px; height:9px; border-radius:50%; background:#eab308; animation:pulse 1.4s infinite; flex-shrink:0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* Date filter - mobile scroll */
+    .date-filter-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+    .date-filter-wrap::-webkit-scrollbar { display:none; }
+    .date-filter { display:flex; gap:6px; width:max-content; }
+    .df-pill { padding:5px 13px; border-radius:999px; font-size:12px; font-weight:500; color:#9ca3af; border:1px solid #e5e7eb; background:#fff; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .df-pill:hover  { background:#f3f4f6; color:#111; }
+    .df-pill.active { background:#6128DB; color:#fff; border-color:#6128DB; }
+    #date-popover { display:none; position:absolute; z-index:50; background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px 18px; box-shadow:0 8px 32px rgba(0,0,0,.08); margin-top:6px; min-width:260px; }
+    #date-popover.show { display:block; }
+    #date-popover label { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:#9ca3af; display:block; margin-bottom:5px; }
+    #date-popover input[type=date] { width:100%; padding:8px 10px; border:1px solid #e5e7eb; border-radius:10px; font-size:13px; color:#111; outline:none; font-family:'Inter',sans-serif; }
+    #date-popover input[type=date]:focus { border-color:#111; box-shadow:0 0 0 3px rgba(0,0,0,.06); }
+    .df-apply { width:100%; margin-top:12px; padding:8px; border-radius:10px; background:#6128DB; color:#fff; font-size:13px; font-weight:600; border:none; cursor:pointer; }
+
+    /* Zero-state bubble */
+    .thought-bubble { position:relative; margin-top:8px; display:inline-flex; align-items:center; gap:6px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:12px; padding:5px 10px; font-size:11px; color:#9ca3af; font-weight:500; animation:floatBubble 3s ease-in-out infinite; white-space:nowrap; }
+    .thought-bubble::before { content:''; position:absolute; bottom:-7px; left:14px; width:7px; height:7px; background:#f3f4f6; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; border-radius:0 0 3px 0; transform:rotate(45deg); }
+    .bubble-dot { width:5px; height:5px; border-radius:50%; background:#9ca3af; opacity:.5; flex-shrink:0; }
+    @keyframes floatBubble { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+
+    /* Ad list */
+    .ad-list-row { display:flex; align-items:center; padding:14px 0; border-bottom:1px solid #f3f4f6; gap:12px; }
+    .ad-list-row:last-child { border-bottom:none; }
+    .ad-rank-num { width:24px; font-size:13px; font-weight:600; color:#d1d5db; flex-shrink:0; text-align:center; }
+    .ad-stat { text-align:center; min-width:52px; }
+    .ad-stat-val { font-size:13px; font-weight:600; color:#111; }
+    .ad-stat-lbl { font-size:10px; color:#bbb; text-transform:uppercase; letter-spacing:.05em; }
+    .ctr-high { background:var(--green-pale); color:var(--green); border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .ctr-mid  { background:#fefce8; color:#854d0e; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .ctr-low  { background:#f5f5f5; color:#9ca3af; border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .leads-badge { background:var(--green-pale); border:1px solid var(--green-border); color:var(--green); border-radius:999px; padding:2px 10px; font-size:12px; font-weight:700; }
+
+    /* Mobile */
+    @media (max-width:767px) { .desktop-list{display:none;} .mobile-list{display:block;} }
+    @media (min-width:768px) { .desktop-list{display:block;} .mobile-list{display:none;} }
+    .chevron { transition:transform .2s; font-size:11px; color:#ddd; margin-left:auto; flex-shrink:0; }
+    .chevron.open { transform:rotate(180deg); }
+    .m-ad-row { display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #f3f4f6; transition:background .15s; min-width:0; }
+    .m-ad-row p { min-width:0; }
+    .m-ad-row:active { background:#f9fafb; }
+    .m-ad-details { display:none; padding:10px 14px 12px 46px; border-bottom:1px solid #f3f4f6; background:#fafafa; }
+    .m-ad-details.open { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .mini-stat { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:8px; text-align:center; }
+
+    /* Header action buttons */
+    .header-action-btn {
+      font-size:11px; font-weight:600; color:#6b7280; background:#f9fafb;
+      border:1px solid #e5e7eb; border-radius:999px; padding:5px 12px;
+      cursor:pointer; transition:all .15s; white-space:nowrap;
+      text-decoration:none; display:inline-flex; align-items:center; gap:4px;
+    }
+    .header-action-btn:hover { background:#f3f4f6; color:#111; border-color:#d1d5db; }
+    .header-action-btn-active { background:#6128DB; color:#fff; border-color:#6128DB; }
+    .header-action-btn-active:hover { background:#4e1fb3; color:#fff; border-color:#4e1fb3; }
+    @media (max-width:640px) {
+      .header-action-btn span { display:none; }
+      .header-action-btn { padding:5px 10px; font-size:10px; }
+      .header-hide-mobile { display:none !important; }
+    }
+
+    /* Lead Health section */
+    .health-status { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-radius:999px; padding:5px 14px; }
+    .health-healthy  { background:linear-gradient(135deg, #f0fdf4, #dcfce7); color:var(--green); border:1px solid var(--green-border); box-shadow:0 2px 8px rgba(22,163,74,.1); }
+    .health-converting { background:linear-gradient(135deg, #f0fdf4, #ecfdf5); color:#15803d; border:1px solid #a7f3d0; }
+    .health-warming  { background:var(--green-pale); color:var(--green); border:1px solid var(--green-border); }
+    .health-cold     { background:#f9fafb; color:#9ca3af; border:1px solid #e5e7eb; }
+    .health-dot { width:7px; height:7px; border-radius:50%; animation:pulse 2s infinite; flex-shrink:0; }
+    .health-dot-green  { background:var(--green); box-shadow:0 0 6px rgba(22,163,74,.4); }
+    .health-dot-amber  { background:#eab308; box-shadow:0 0 6px rgba(234,179,8,.4); }
+    .health-dot-gray   { background:#9ca3af; }
+
+    .funnel-bar { height:8px; border-radius:999px; transition:width .6s ease; }
+    .funnel-container { position:relative; height:8px; border-radius:999px; background:#f3f4f6; overflow:hidden; }
+    .funnel-fill { position:absolute; left:0; top:0; height:100%; border-radius:999px; transition:width .8s cubic-bezier(.4,0,.2,1); }
+    .funnel-fill-leads { background:linear-gradient(90deg, #d1d5db, #9ca3af); }
+    .funnel-fill-conv  { background:linear-gradient(90deg, var(--green), #22c55e); }
+
+    .revenue-glow { position:relative; }
+    .revenue-glow::after {
+      content:''; position:absolute; inset:-4px; border-radius:20px;
+      background:linear-gradient(135deg, rgba(22,163,74,.06), rgba(22,163,74,.02));
+      pointer-events:none; z-index:0;
+    }
+
+    .roas-ring { width:64px; height:64px; border-radius:50%; position:relative; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .roas-ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
+    .roas-ring-val { font-size:18px; font-weight:700; z-index:1; }
+
+    .conv-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid #f3f4f6; }
+    .conv-item:last-child { border-bottom:none; }
+    .conv-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+    .conv-avatar-green { background:var(--green-pale); color:var(--green); border:1px solid var(--green-border); }
+    .conv-avatar-amber { background:#fefce8; color:#854d0e; border:1px solid #fde047; }
+    .conv-avatar-gray  { background:#f3f4f6; color:#9ca3af; border:1px solid #e5e7eb; }
+
+    /* Upload portal — floating icon (mobile-friendly) */
+    #upload-portal-fab {
+      position:fixed; bottom:24px; left:24px; z-index:400;
+      width:38px; height:38px; border-radius:50%;
+      background:#fff; border:1px solid #eee;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; font-size:16px; color:#bbb;
+      box-shadow:0 2px 12px rgba(0,0,0,.08);
+      transition:all .2s; text-decoration:none;
+    }
+    #upload-portal-fab:hover { border-color:var(--red-border); color:var(--red); box-shadow:0 4px 20px rgba(244,39,31,.12); }
+
+    /* Campaign status banner — live (green) */
+    #campaign-banner-live {
+      display:none;
+      background:linear-gradient(135deg,#052e16,#14532d);
+      border-radius:16px; padding:14px 20px;
+    }
+    /* Campaign status banner — in progress (Lumen signature) */
+    #campaign-banner-progress {
+      display:none;
+      background:
+        radial-gradient(ellipse 80% 120% at 100% 100%, rgba(244,39,31,.12) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 80% at 0% 0%, rgba(244,39,31,.06) 0%, transparent 60%),
+        linear-gradient(160deg, #ffffff 0%, #fffafa 25%, #fff5f4 50%, #ffedec 75%, #ffe4e2 100%);
+      border-radius:16px; padding:16px 22px;
+      border:1px solid rgba(244,39,31,.1);
+      box-shadow:0 2px 16px rgba(244,39,31,.04), 0 0 0 1px rgba(244,39,31,.03);
+      position:relative;
+      overflow:hidden;
+    }
+    #campaign-banner-progress::before {
+      content:'';
+      position:absolute;
+      top:-30%;
+      right:-10%;
+      width:200px;
+      height:200px;
+      background:radial-gradient(circle, rgba(244,39,31,.07) 0%, transparent 70%);
+      border-radius:50%;
+      pointer-events:none;
+    }
+    #campaign-banner-progress::after {
+      content:'';
+      position:absolute;
+      bottom:0;
+      left:0;
+      right:0;
+      height:1px;
+      background:linear-gradient(90deg, transparent, rgba(244,39,31,.15) 30%, rgba(244,39,31,.15) 70%, transparent);
+    }
+    /* Past campaign banner */
+    #past-banner { display:none; background:linear-gradient(135deg,#1a0505,#3d0c0c); border-radius:16px; padding:14px 20px; }
+    .banner-title { font-size:16px; font-weight:700; color:#fff; }
+    .banner-sub { font-size:11px; color:rgba(255,255,255,.5); margin-top:2px; }
+    .banner-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }
+    .banner-dot-amber { background:#ffbf00; box-shadow:0 0 10px rgba(255,191,0,.6), 0 0 20px rgba(255,191,0,.3); }
+    .banner-dot-green { background:#39ff14; box-shadow:0 0 10px rgba(57,255,20,.6), 0 0 20px rgba(57,255,20,.3); }
+
+    /* Creative modal */
+    #creative-modal { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.45); align-items:center; justify-content:center; padding:20px; }
+    #creative-modal.show { display:flex; }
+    .modal-card { background:#fff; border-radius:20px; max-width:480px; width:100%; overflow:hidden; }
+    .view-creative-btn { font-size:11px; font-weight:600; color:#111; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:999px; padding:3px 10px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:background .15s; }
+    .view-creative-btn:hover { background:#e5e7eb; }
+
+    /* Sauce advisor */
+    #sauce-btn {
+      position:fixed; bottom:24px; right:24px; z-index:400;
+      width:36px; height:36px; border-radius:50%;
+      background:#fff; border:1px solid #eee;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; font-size:15px; color:#ccc;
+      box-shadow:0 2px 12px rgba(0,0,0,.08);
+      transition:all .2s; opacity:.6;
+    }
+    #sauce-btn:hover { opacity:1; border-color:var(--green-border); color:var(--green); box-shadow:0 4px 20px rgba(22,163,74,.15); }
+    #sauce-panel {
+      display:none; position:fixed; bottom:70px; right:24px; z-index:400;
+      width:320px; max-width:calc(100vw - 48px);
+      background:#fff; border:1px solid #e5e7eb;
+      border-radius:20px; box-shadow:0 8px 40px rgba(0,0,0,.1);
+      overflow:hidden;
+    }
+    #sauce-panel.show { display:block; animation:slideUp .25s ease; }
+    @keyframes slideUp { from{transform:translateY(12px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .sauce-header { background:var(--red); padding:14px 16px; display:flex; align-items:center; gap:10px; }
+    .sauce-avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:flex; align-items:center; justify-content:center; font-size:16px; }
+    .sauce-insight { padding:12px 16px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#333; line-height:1.5; }
+    .sauce-insight:last-child { border-bottom:none; }
+    .sauce-insight-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; margin-bottom:4px; }
+    .sauce-win   .sauce-insight-label { color:var(--green); }
+    .sauce-info  .sauce-insight-label { color:#111; }
+    .sauce-soon  .sauce-insight-label { color:#d97706; }
+
+    /* Welcome screen */
+    #welcome-screen { position:fixed; inset:0; z-index:9999; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; opacity:1; transition:opacity .6s; pointer-events:none; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Welcome screen -->
+<div id="welcome-screen">
+  <img src="/static/lumen-logo.png" style="height:48px;margin-bottom:8px;" onerror="this.style.display='none'"/>
+  <p id="welcome-name" style="font-size:46px;font-weight:700;color:#111;letter-spacing:-.02em;line-height:1.1;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s;max-width:340px;text-align:center;">Welcome, {{ user_name }}</p>
+  <p id="welcome-sub" style="font-size:14px;color:#9ca3af;opacity:0;transition:opacity .5s .2s;max-width:280px;text-align:center;line-height:1.5;padding:0 16px;margin-top:6px;"></p>
+</div>
+
+<!-- Creative modal (video player) -->
+<div id="creative-modal">
+  <div class="modal-card" style="max-width:400px;padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:16px 16px 10px;">
+      <div>
+        <p style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;">Ad Creative</p>
+        <p id="modal-ad-name" style="font-size:16px;font-weight:600;color:#111;margin-top:2px;"></p>
+      </div>
+      <button id="modal-close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:#ccc;padding:4px 8px;">&#10005;</button>
+    </div>
+    <div id="modal-video-wrap" style="width:100%;background:#000;">
+      <video id="modal-video" style="width:100%;display:block;" controls playsinline></video>
+    </div>
+    <div id="modal-no-video" style="padding:20px;text-align:center;display:none;">
+      <p style="font-size:13px;color:#999;">Creative not yet available for this ad.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Sauce advisor panel -->
+<div id="sauce-panel">
+  <div class="sauce-header">
+    <div class="sauce-avatar">&#127827;</div>
+    <div>
+      <p style="font-size:13px;font-weight:700;color:#fff;">Sauce</p>
+      <p style="font-size:11px;color:rgba(255,255,255,.7);">Your analytics advisor</p>
+    </div>
+    <button onclick="toggleSauce()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.7);font-size:18px;padding:0 4px;">&#10005;</button>
+  </div>
+  <div id="sauce-insights"></div>
+</div>
+<button id="upload-portal-fab" onclick="showPortalSoon()" title="Upload Portal">&#128228;</button>
+
+<!-- Upload Portal coming soon toast -->
+<div id="portal-toast" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.25);align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px 36px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.12);animation:slideUp .25s ease;">
+    <p style="font-size:22px;margin-bottom:6px;">&#128228;</p>
+    <p style="font-size:15px;font-weight:600;color:#111;">Upload Portal</p>
+    <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Coming soon</p>
+  </div>
+</div>
+<button id="sauce-btn" onclick="toggleSauce()" title="Ask Sauce">?</button>
+
+<!-- Header -->
+<header style="background:#fff;border-bottom:1px solid #e5e7eb;" class="sticky top-0 z-50">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div style="display:flex;flex-direction:column;align-items:flex-start;">
+      <img src="/static/lumen-logo.png" style="height:38px;" onerror="this.style.display='none'"/>
+      <p style="font-size:9px;color:#bbb;font-weight:500;letter-spacing:.05em;margin-top:1px;">Marketing Solutions</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="header-past-btn" onclick="showPast()" class="header-action-btn" title="View past campaigns">
+        <span style="font-size:12px;">&#128218;</span> Past Campaigns
+      </button>
+      <button id="header-back-btn" onclick="showLive()" class="header-action-btn header-action-btn-active" style="display:none;" title="Back to live view">
+        <span style="font-size:11px;">&#8592;</span> Back to Live
+      </button>
+      <button onclick="showPortalSoon()" class="header-action-btn header-hide-mobile" title="Upload Portal">
+        <span style="font-size:12px;">&#128228;</span> Upload Portal
+      </button>
+      <a href="/logout" class="header-action-btn" style="color:#9ca3af;" title="Sign out">Sign out</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 pt-4 pb-8 space-y-5">
+
+  {% if error %}
+  <div class="card px-5 py-4 text-red-600 text-sm" style="border-color:#fca5a5;background:#fff5f5;">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Data injection -->
+  <script>
+    const RAW_META_LIVE  = {{ raw_meta_live  | tojson }};
+    const RAW_META_PAST  = {{ raw_meta_past  | tojson }};
+    const RAW_LEADS_LIVE = {{ live_leads     | tojson }};
+    const RAW_LEADS_PAST = {{ past_leads     | tojson }};
+    const LIVE_CONV      = {{ live_conversions | tojson }};
+    const PAST_CONV      = {{ past_conversions | tojson }};
+    const IS_LIVE        = {{ is_live | tojson }};
+    const LAUNCH_DATE    = "{{ launch_date }}";
+    const LIVE_ADS       = {{ live_ads  | tojson }};
+    const PAST_ADS       = {{ past_ads  | tojson }};
+
+    let VIEW_MODE = 'live'; // 'live' or 'past'
+  </script>
+
+  <!-- Campaign banner — LIVE (green gradient) -->
+  <div id="campaign-banner-live">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+      <div>
+        <p class="banner-title">&#128640; Active Campaign</p>
+        <p style="font-size:11px;color:#9ca3af;font-weight:500;margin-top:1px;padding-left:22px;">Spring 2026</p>
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--green-pale);border:1px solid var(--green-border);border-radius:999px;padding:4px 12px;flex-shrink:0;margin-top:2px;">
+        <span class="banner-dot banner-dot-green" style="margin:0;"></span>
+        <span style="font-size:11px;font-weight:600;color:var(--green);letter-spacing:.04em;text-transform:uppercase;">Live</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campaign banner — IN PROGRESS (amber gradient) -->
+  <div id="campaign-banner-progress">
+    <div class="flex items-center justify-between" style="position:relative;z-index:1;">
+      <div>
+        <p style="font-size:17px;font-weight:700;color:#1a1a1a;letter-spacing:-.01em;white-space:nowrap;"><span class="banner-dot banner-dot-amber"></span>Active Campaign</p>
+        <p style="font-size:11px;color:#c4443e;font-weight:500;margin-top:3px;letter-spacing:.02em;white-space:nowrap;">In Progress &middot; Launching soon</p>
+      </div>
+      <p class="hidden sm:block" style="font-size:11px;color:rgba(0,0,0,.28);max-width:220px;text-align:right;line-height:1.45;font-weight:400;">{{ user_name }}, your data will appear here once this campaign goes live.</p>
+    </div>
+  </div>
+
+  <!-- Past campaign banner -->
+  <div id="past-banner">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="banner-title">&#128202; Past Campaign</p>
+        <p class="banner-sub">November &ndash; December 2025</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI section -->
+  <div id="kpi-section">
+    <!-- Date filter -->
+    <section style="position:relative;" class="mb-4">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin-bottom:10px;">
+        <span class="section-label" style="margin-bottom:0;">Overview</span>
+      </div>
+      <div class="date-filter-wrap">
+        <div class="date-filter">
+          {% for label, val in [('Today','today'),('Yesterday','yesterday'),('Last 7 Days','7d'),('Last 30 Days','30d'),('Maximum','max'),('Custom','custom')] %}
+          <button class="df-pill {% if val=='max' %}active{% endif %}" onclick="setFilter('{{ val }}',this)">{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="date-popover">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><label>From</label><input type="date" id="df-from"/></div>
+          <div><label>To</label><input type="date" id="df-to"/></div>
+        </div>
+        <button class="df-apply" onclick="applyCustom()">Apply</button>
+      </div>
+    </section>
+
+    <!-- Lead Health (top section — the money) -->
+    <section id="lead-health-section" class="card overflow-hidden" style="display:none;">
+      <div id="health-header" class="px-5 py-4" style="border-bottom:1px solid #f3f4f6;">
+        <div class="flex items-center gap-3">
+          <p class="section-label" style="margin-bottom:0;">Lead Health</p>
+          <span id="health-badge" class="health-status health-warming">
+            <span class="health-dot health-dot-amber"></span>
+            Warming Up
+          </span>
+        </div>
+      </div>
+
+      <div class="px-5 py-4">
+        <!-- Revenue + ROAS hero row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div class="card card-hover p-4 revenue-glow" style="position:relative;z-index:1;">
+            <p class="metric-label">Revenue</p>
+            <p class="metric-value-green mt-2" id="health-revenue">$0</p>
+            <p class="metric-sub" id="health-revenue-sub">From converted leads</p>
+          </div>
+          <div class="card card-hover p-4" style="display:flex;align-items:center;gap:14px;">
+            <div class="roas-ring" id="roas-ring">
+              <svg viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="#f3f4f6" stroke-width="5"/>
+                <circle id="roas-arc" cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round"/>
+              </svg>
+              <span class="roas-ring-val" id="roas-val">0.0x</span>
+            </div>
+            <div>
+              <p class="metric-label">ROAS</p>
+              <p class="metric-sub" style="margin-top:2px;" id="roas-sub">Return on ad spend</p>
+            </div>
+          </div>
+          <div class="card card-hover p-4">
+            <p class="metric-label">Converted</p>
+            <p class="metric-value mt-2" style="font-size:22px;" id="health-converted">0</p>
+            <p class="metric-sub" id="health-conv-sub">Closed leads</p>
+          </div>
+          <div class="card card-hover p-4">
+            <p class="metric-label">Conversion Rate</p>
+            <p class="metric-value mt-2" style="font-size:22px;" id="health-conv-rate">0%</p>
+            <p class="metric-sub" id="health-rate-sub">Leads that converted</p>
+          </div>
+        </div>
+
+        <!-- Funnel visualization -->
+        <div class="mb-4" id="health-funnel-wrap">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1">
+                <span style="width:10px;height:10px;border-radius:2px;background:#9ca3af;display:inline-block;"></span>
+                <span style="font-size:11px;color:#9ca3af;font-weight:500;">Leads</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block;"></span>
+                <span style="font-size:11px;color:#9ca3af;font-weight:500;">Converted</span>
+              </div>
+            </div>
+            <span style="font-size:11px;color:#bbb;font-weight:500;" id="funnel-ratio">0 / 0</span>
+          </div>
+          <div class="funnel-container">
+            <div class="funnel-fill funnel-fill-leads" id="funnel-leads" style="width:0%;"></div>
+            <div class="funnel-fill funnel-fill-conv" id="funnel-conv" style="width:0%;"></div>
+          </div>
+        </div>
+
+        <!-- Recent conversions list -->
+        <div id="health-conv-list" style="display:none;">
+          <p style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">Recent Conversions</p>
+          <div id="conv-list-items"></div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="health-empty" style="text-align:center;padding:8px 0;">
+          <p style="font-size:13px;color:#bbb;">No conversions yet</p>
+          <p style="font-size:11px;color:#d1d5db;margin-top:4px;">Revenue and conversion data will appear as leads convert to jobs</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Campaign Performance — hero metrics -->
+    <div class="grid grid-cols-3 gap-3 mb-4 mt-4">
+      <div class="card card-hover p-4">
+        <p class="metric-label" id="kpi-leads-label">Leads</p>
+        <p class="metric-value-green mt-2" id="kpi-leads">0</p>
+        <div id="kpi-leads-sub"><div class="thought-bubble"><span class="bubble-dot"></span>warming up...</div></div>
+      </div>
+      <div class="card card-hover p-4">
+        <p class="metric-label">Spend</p>
+        <p class="metric-value mt-2" style="font-size:22px;" id="kpi-spend">$0.00</p>
+        <p class="metric-sub">Meta ads</p>
+      </div>
+      <div class="card card-hover p-4">
+        <p class="metric-label">Clicks</p>
+        <p class="metric-value mt-2" style="font-size:22px;" id="kpi-clicks">0</p>
+        <p class="metric-sub">Link clicks</p>
+      </div>
+    </div>
+
+    <!-- Recent Leads list -->
+    <div class="card card-hover mb-4" id="recent-leads-card" style="display:none;padding:16px 20px;">
+      <p style="font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">Recent Leads</p>
+      <div id="recent-leads-items"></div>
+    </div>
+
+    <!-- CPL — full width between hero cards and ad efficiency -->
+    <div class="card card-hover mb-4" id="kpi-cpl-card" style="display:none;padding:16px 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <p class="metric-label">Cost Per Lead</p>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;">
+            <p style="font-size:24px;font-weight:700;color:#111;" id="kpi-cpl">$0.00</p>
+            <span id="cpl-trend-badge" style="font-size:10px;font-weight:600;border-radius:999px;padding:2px 6px;"></span>
+          </div>
+          <p class="metric-sub" style="margin-top:4px;" id="cpl-sub">Spend / leads</p>
+        </div>
+        <canvas id="cpl-spark" width="180" height="44" style="opacity:.8;"></canvas>
+      </div>
+    </div>
+    <!-- CPL placeholder (no leads yet) -->
+    <div class="card card-hover mb-4" id="kpi-cpl-spark-card" style="display:none;padding:16px 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <p class="metric-label">Cost Per Lead</p>
+          <p style="font-size:24px;font-weight:700;color:#d1d5db;margin-top:6px;">&mdash;</p>
+          <p class="metric-sub" style="margin-top:4px;" id="cpl-spark-sub">Tracking starts when leads come in</p>
+        </div>
+        <canvas id="cpl-spark-placeholder" width="180" height="44" style="opacity:.8;"></canvas>
+      </div>
+    </div>
+
+    <!-- Ad Efficiency — visual cards -->
+    <div class="card card-hover mb-3" style="padding:16px 20px;">
+      <div class="flex items-center justify-between mb-3">
+        <p class="section-label" style="margin-bottom:0;">Ad Efficiency</p>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <!-- CTR gauge -->
+        <div style="text-align:center;">
+          <div style="position:relative;width:72px;height:72px;margin:0 auto 6px;">
+            <svg viewBox="0 0 72 72" style="transform:rotate(-90deg);">
+              <circle cx="36" cy="36" r="28" fill="none" stroke="#f3f4f6" stroke-width="5"/>
+              <circle id="ctr-gauge-arc" cx="36" cy="36" r="28" fill="none" stroke="#e5e7eb" stroke-width="5" stroke-dasharray="175.93" stroke-dashoffset="175.93" stroke-linecap="round" style="transition:stroke-dashoffset .8s ease,stroke .3s;"/>
+            </svg>
+            <span id="ctr-gauge-val" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#111;">0%</span>
+          </div>
+          <p class="metric-label">CTR</p>
+        </div>
+        <!-- CPC bar -->
+        <div style="text-align:center;">
+          <p style="font-size:20px;font-weight:700;color:#111;" id="kpi-cpc">$0.00</p>
+          <div style="height:4px;border-radius:999px;background:#f3f4f6;margin:8px auto;width:80%;overflow:hidden;">
+            <div id="cpc-bar" style="height:100%;border-radius:999px;background:#9ca3af;width:0%;transition:width .8s ease;"></div>
+          </div>
+          <p class="metric-label">CPC</p>
+        </div>
+        <!-- CPM bar -->
+        <div style="text-align:center;">
+          <p style="font-size:20px;font-weight:700;color:#111;" id="kpi-cpm">$0.00</p>
+          <div style="height:4px;border-radius:999px;background:#f3f4f6;margin:8px auto;width:80%;overflow:hidden;">
+            <div id="cpm-bar" style="height:100%;border-radius:999px;background:#9ca3af;width:0%;transition:width .8s ease;"></div>
+          </div>
+          <p class="metric-label">CPM</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CPL Sparkline (full width) -->
+    <div class="card card-hover mb-3" id="kpi-cpl-spark-card" style="display:none;padding:16px 20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <p class="metric-label">CPL Trend</p>
+          <p class="metric-sub" style="margin-top:4px;" id="cpl-spark-sub">Cost per lead over time</p>
+        </div>
+        <canvas id="cpl-spark" width="180" height="44" style="opacity:.8;"></canvas>
+      </div>
+    </div>
+
+    <!-- Hidden elements for JS compatibility -->
+    <span id="kpi-ctr" style="display:none;">0.00%</span>
+    <span id="kpi-impressions" style="display:none;">0</span>
+  </div>
+
+  <!-- Retargeting Card -->
+  <script>
+    const RAW_META_RETARGET = {{ raw_meta_retarget | tojson }};
+    const RETARGET_AD_IDS   = {{ retarget_ad_ids | tojson }};
+    const RETARGET_LEADS    = {{ retarget_leads | tojson }};
+  </script>
+  <div class="card card-hover mb-4" id="retarget-card" style="padding:16px 20px;">
+    <div class="flex items-center gap-2 mb-3">
+      <div style="width:28px;height:28px;border-radius:8px;background:#fef3c7;border:1px solid #fde68a;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="14" height="14" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      </div>
+      <p class="section-label" style="margin-bottom:0;">Retargeting</p>
+      <span id="retarget-status" style="font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-left:auto;"></span>
+    </div>
+    <div class="grid grid-cols-3 gap-3">
+      <div style="text-align:center;">
+        <p style="font-size:22px;font-weight:700;color:#1a2e1b;" id="retarget-recaptured">0</p>
+        <p class="metric-label">Leads Recaptured</p>
+      </div>
+      <div style="text-align:center;">
+        <p style="font-size:22px;font-weight:700;color:#1a2e1b;" id="retarget-impressions">0</p>
+        <p class="metric-label">Impressions</p>
+      </div>
+      <div style="text-align:center;">
+        <p style="font-size:22px;font-weight:700;color:#1a2e1b;" id="retarget-spend">$0</p>
+        <p class="metric-label">Retarget Cost</p>
+      </div>
+    </div>
+    <div id="retarget-empty" style="text-align:center;padding:6px 0;margin-top:8px;">
+      <p style="font-size:12px;color:#aab9ab;">Retargeting campaign is active. Visitors who don't book will see follow-up ads.</p>
+    </div>
+  </div>
+  <script>
+  (function() {
+    const meta = RAW_META_RETARGET || [];
+    const leads = RETARGET_LEADS || [];
+    const status = document.getElementById('retarget-status');
+    const emptyMsg = document.getElementById('retarget-empty');
+
+    const totalImpr  = meta.reduce((s,r) => s + r.impressions, 0);
+    const totalSpend = meta.reduce((s,r) => s + r.spend, 0);
+    const recaptured = leads.length;
+
+    document.getElementById('retarget-recaptured').textContent = recaptured;
+    document.getElementById('retarget-impressions').textContent = totalImpr.toLocaleString();
+    document.getElementById('retarget-spend').textContent = totalSpend > 0 ? '$' + totalSpend.toFixed(2) : '$0';
+
+    if (recaptured > 0) {
+      document.getElementById('retarget-recaptured').style.color = 'var(--green)';
+      status.textContent = 'Recapturing';
+      status.style.background = '#f0fdf4';
+      status.style.color = 'var(--green)';
+      status.style.border = '1px solid var(--green-border)';
+      emptyMsg.style.display = 'none';
+    } else if (totalImpr > 0) {
+      status.textContent = 'Warming';
+      status.style.background = '#fefce8';
+      status.style.color = '#854d0e';
+      status.style.border = '1px solid #fde047';
+      emptyMsg.style.display = 'none';
+    } else {
+      status.textContent = 'Active';
+      status.style.background = '#f0fdf4';
+      status.style.color = 'var(--green)';
+      status.style.border = '1px solid var(--green-border)';
+    }
+  })();
+  </script>
+
+  <!-- Ad Rankings -->
+  <section class="card overflow-hidden" id="ad-rankings-section">
+    <div class="px-5 py-4 flex items-center justify-between" style="border-bottom:1px solid #f3f4f6;">
+      <p class="section-label" style="margin-bottom:0;">Ad Rankings</p>
+      <span class="text-xs" style="color:#bbb;" id="ad-rankings-meta">leads first, then CTR</span>
+    </div>
+
+    <div id="ad-rankings-content">
+      <div class="px-6 py-12 text-center" style="color:#bbb;">
+        <p style="font-size:14px;">No live ad data yet</p>
+        <p style="font-size:12px;margin-top:4px;">Rankings will appear once Active Campaign goes live</p>
+      </div>
+    </div>
+    <p id="ad-rankings-disclaimer" style="display:none;font-size:11px;color:#bbb;text-align:center;padding:6px 16px 12px;">Ads are still populating. All creatives will be visible within 24 hours.</p>
+  </section>
+
+</main>
+
+<footer style="border-top:1px solid #e5e7eb;background:#fff;" class="px-5 py-4 mt-8 text-center">
+  <p class="text-xs" style="color:#ddd;">Lumen Marketing &copy; 2026</p>
+</footer>
+
+<script>
+// ── Welcome screen ──────────────────────────────────────────────
+(function() {
+  const QUIPS = [
+    "Your window's clearest view yet.",
+    "Streak-free data. Just like the windows.",
+    "Clean numbers. Clean glass.",
+    "The results are in — and they're spotless.",
+    "No streaks here — just results.",
+    "Fresh data, fresh start.",
+    "Squeaky clean performance, incoming.",
+    "Cleaner than a January window."
+  ];
+  const MINS=15, KEY='bc_last_seen';
+  const skip=sessionStorage.getItem('skip_welcome');
+  const last=parseInt(localStorage.getItem(KEY)||'0',10);
+  const now=Date.now(), away=now-last>MINS*60*1000;
+  localStorage.setItem(KEY,now);
+  const el=document.getElementById('welcome-screen');
+  if(skip||!away){sessionStorage.removeItem('skip_welcome');el.style.display='none';return;}
+  sessionStorage.removeItem('skip_welcome');
+  document.getElementById('welcome-sub').textContent=QUIPS[Math.floor(Math.random()*QUIPS.length)];
+  setTimeout(()=>{document.getElementById('welcome-name').style.opacity='1';document.getElementById('welcome-name').style.transform='translateY(0)';document.getElementById('welcome-sub').style.opacity='1';},200);
+  setTimeout(()=>{el.style.opacity='0';},2000);
+  setTimeout(()=>{el.style.display='none';},2600);
+})();
+
+// ── Upload Portal toast ─────────────────────────────────────────
+function showPortalSoon() {
+  const t = document.getElementById('portal-toast');
+  t.style.display = 'flex';
+  setTimeout(() => { t.style.display = 'none'; }, 1500);
+}
+document.getElementById('portal-toast').addEventListener('click', function() { this.style.display = 'none'; });
+
+// ── Campaign switcher ───────────────────────────────────────────
+function showBanner(mode) {
+  document.getElementById('campaign-banner-live').style.display = 'none';
+  document.getElementById('campaign-banner-progress').style.display = 'none';
+  document.getElementById('past-banner').style.display = 'none';
+  document.getElementById('header-past-btn').style.display = '';
+  document.getElementById('header-back-btn').style.display = 'none';
+
+  if (mode === 'past') {
+    document.getElementById('past-banner').style.display = 'block';
+    document.getElementById('header-past-btn').style.display = 'none';
+    document.getElementById('header-back-btn').style.display = '';
+  } else if (IS_LIVE) {
+    document.getElementById('campaign-banner-live').style.display = 'block';
+  } else {
+    document.getElementById('campaign-banner-progress').style.display = 'block';
+  }
+}
+
+function showPast() {
+  VIEW_MODE = 'past';
+  showBanner('past');
+  document.querySelectorAll('.df-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.df-pill')[4].classList.add('active');
+  updateKPIs(null, null);
+  updateLeadHealth(null, null);
+  renderAds(PAST_ADS);
+}
+
+function showLive() {
+  VIEW_MODE = 'live';
+  showBanner('live');
+  document.querySelectorAll('.df-pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.df-pill')[4].classList.add('active');
+  updateKPIs(null, null);
+  updateLeadHealth(null, null);
+  renderAds(LIVE_ADS);
+}
+
+// ── Render ad rankings ──────────────────────────────────────────
+function renderAds(ads) {
+  const container = document.getElementById('ad-rankings-content');
+  const meta = document.getElementById('ad-rankings-meta');
+
+  if (!ads || ads.length === 0) {
+    meta.textContent = '';
+    const mode = VIEW_MODE === 'live' ? 'Active Campaign goes live' : 'this campaign';
+    container.innerHTML = `<div class="px-6 py-12 text-center" style="color:#bbb;">
+      <p style="font-size:14px;">No ad data yet</p>
+      <p style="font-size:12px;margin-top:4px;">Rankings will appear once ${mode} has data</p>
+    </div>`;
+    return;
+  }
+
+  meta.textContent = ads.length + ' ads \u00b7 leads first, then CTR';
+
+  // Desktop
+  let desktopHTML = '<div class="desktop-list">';
+  ads.forEach((ad, i) => {
+    const rank = i + 1;
+    const rankColor = rank===1?'color:#d4af37':rank===2?'color:#a8a9ad':rank===3?'color:#cd7f32':'';
+    const ctrClass = ad.ctr>=5?'high':ad.ctr>=2?'mid':'low';
+    const leadsBadge = ad.leads>0 ? `<span class="leads-badge">${ad.leads} leads</span>` : '';
+    desktopHTML += `
+      <div class="ad-list-row px-5">
+        <span class="ad-rank-num" style="${rankColor}">${rank}</span>
+        <div style="flex:1;min-width:0;">
+          <p class="text-sm font-semibold truncate" style="color:#111;">${ad.ad_name||'\u2014'}</p>
+          <p class="text-xs truncate" style="color:#bbb;">${ad.campaign||''}</p>
+        </div>
+        ${leadsBadge}
+        <div class="ad-stat"><p class="ad-stat-val">$${Math.round(ad.spend)}</p><p class="ad-stat-lbl">Spend</p></div>
+        <div class="ad-stat"><p class="ad-stat-val">${ad.impressions.toLocaleString()}</p><p class="ad-stat-lbl">Impr.</p></div>
+        <div class="ad-stat"><p class="ad-stat-val">${ad.clicks.toLocaleString()}</p><p class="ad-stat-lbl">Clicks</p></div>
+        <div><span class="ctr-${ctrClass}">${ad.ctr.toFixed(2)}% CTR</span></div>
+        <button class="view-creative-btn" onclick="openCreative('${ad.ad_id}','${(ad.ad_name||'').replace(/'/g,"\\'")}')">View Creative</button>
+      </div>`;
+  });
+  desktopHTML += '</div>';
+
+  // Mobile
+  let mobileHTML = '<div class="mobile-list">';
+  ads.forEach((ad, i) => {
+    const rank = i + 1;
+    const id = 'ad-' + VIEW_MODE + '-' + rank;
+    const rankColor = rank===1?'color:#d4af37':rank===2?'color:#a8a9ad':rank===3?'color:#cd7f32':'';
+    const leadsBadge = ad.leads>0 ? `<span class="leads-badge" style="flex-shrink:0;font-size:10px;">${ad.leads}&#127827;</span>` : '';
+    mobileHTML += `
+      <div class="m-ad-row" onclick="togglePanel('${id}')">
+        <span class="ad-rank-num" style="${rankColor}">${rank}</span>
+        <p class="text-sm font-medium flex-1 truncate" style="color:#111;">${ad.ad_name||'\u2014'}</p>
+        ${leadsBadge}
+        <span class="chevron" id="${id}-chev">&#9660;</span>
+      </div>
+      <div class="m-ad-details" id="${id}">
+        <div class="mini-stat"><p class="ad-stat-lbl">Leads</p><p class="ad-stat-val" style="color:var(--green);">${ad.leads}</p></div>
+        <div class="mini-stat"><p class="ad-stat-lbl">Spend</p><p class="ad-stat-val">$${ad.spend.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</p></div>
+        <div class="mini-stat"><p class="ad-stat-lbl">CTR</p><p class="ad-stat-val">${ad.ctr.toFixed(2)}%</p></div>
+        <div class="mini-stat"><p class="ad-stat-lbl">Clicks</p><p class="ad-stat-val">${ad.clicks.toLocaleString()}</p></div>
+        <div class="mini-stat"><p class="ad-stat-lbl">Impr.</p><p class="ad-stat-val">${ad.impressions.toLocaleString()}</p></div>
+        <div class="mini-stat"><p class="ad-stat-lbl">Cost/Lead</p><p class="ad-stat-val">${ad.leads > 0 ? '$'+(ad.spend/ad.leads).toFixed(2) : '$0'}</p></div>
+        <div class="mini-stat" style="cursor:pointer;" onclick="openCreative('${ad.ad_id}','${(ad.ad_name||'').replace(/'/g,"\\'")}')">
+          <p class="ad-stat-lbl">Creative</p>
+          <p style="font-size:12px;color:var(--red);font-weight:600;">View &rarr;</p>
+        </div>
+      </div>`;
+  });
+  mobileHTML += '</div>';
+
+  container.innerHTML = desktopHTML + mobileHTML;
+
+  // Show disclaimer if within 24h of launch and viewing live campaign
+  const disclaimer = document.getElementById('ad-rankings-disclaimer');
+  const hoursSinceLaunch = (Date.now() - new Date(LAUNCH_DATE + 'T00:00:00').getTime()) / 3600000;
+  disclaimer.style.display = (VIEW_MODE === 'live' && hoursSinceLaunch < 24) ? 'block' : 'none';
+}
+
+// ── CPL Sparkline ───────────────────────────────────────────────
+function scaleCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  if (!canvas.dataset.scaled) {
+    const w = canvas.width;
+    const h = canvas.height;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.getContext('2d').scale(dpr, dpr);
+    canvas.dataset.scaled = '1';
+  }
+  const W = parseInt(canvas.style.width);
+  const H = parseInt(canvas.style.height);
+  canvas.getContext('2d').clearRect(0, 0, W, H);
+}
+
+function drawCPLSpark(data, isLive, endLabel) {
+  const canvas = document.getElementById('cpl-spark');
+  if (!canvas) return;
+  scaleCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = parseInt(canvas.style.width);
+  const H = parseInt(canvas.style.height);
+  const pad = 4;
+  const rightPad = endLabel ? 44 : pad;
+
+  // Empty state for live with no data — dashed placeholder line
+  if (data.length < 2) {
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(pad, H/2);
+    ctx.lineTo(W-pad, H/2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    return;
+  }
+
+  const min = Math.min(...data) * 0.9;
+  const max = Math.max(...data) * 1.1;
+  const range = max - min || 1;
+  const stepX = (W - pad - rightPad) / (data.length - 1);
+
+  const down = data[data.length-1] <= data[0];
+  const color = isLive ? (down ? '#16a34a' : '#dc2626') : (down ? '#16a34a' : '#9ca3af');
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  data.forEach((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (1 - (v - min) / range) * (H - pad*2);
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Gradient fill under line
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, down ? 'rgba(22,163,74,.12)' : 'rgba(156,163,175,.08)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.lineTo(pad + (data.length-1)*stepX, H);
+  ctx.lineTo(pad, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // End dot
+  const lastX = pad + (data.length-1)*stepX;
+  const lastY = pad + (1 - (data[data.length-1] - min) / range) * (H - pad*2);
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 4, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  // Outer glow ring
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 7, 0, Math.PI*2);
+  ctx.fillStyle = down ? 'rgba(22,163,74,.15)' : 'rgba(156,163,175,.15)';
+  ctx.fill();
+
+  // End label (CPL value at the dot)
+  if (endLabel) {
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('$' + endLabel.toFixed(0), lastX + 12, lastY);
+  }
+}
+
+function drawCPLSparkPlaceholder() {
+  const canvas = document.getElementById('cpl-spark-placeholder');
+  if (!canvas) return;
+  scaleCanvas(canvas);
+  const ctx = canvas.getContext('2d');
+  const W = parseInt(canvas.style.width);
+  const H = parseInt(canvas.style.height);
+  const pad = 6;
+
+  // Simulated downward trend line (what CPL will look like)
+  const points = [38, 35, 33, 30, 26, 24, 21, 18, 16, 14];
+  const maxV = 40, minV = 10;
+  const range = maxV - minV;
+  const stepX = (W - pad*2 - 30) / (points.length - 1);
+
+  // Dashed line
+  ctx.setLineDash([4, 3]);
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  points.forEach((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (1 - (v - minV) / range) * (H - pad*2);
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Gradient fill
+  const lastPtX = pad + (points.length-1)*stepX;
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, 'rgba(209,213,219,.08)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.lineTo(lastPtX, H);
+  ctx.lineTo(pad, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // End dot (hollow)
+  const lastY = pad + (1 - (points[points.length-1] - minV) / range) * (H - pad*2);
+  ctx.beginPath();
+  ctx.arc(lastPtX, lastY, 4, 0, Math.PI*2);
+  ctx.strokeStyle = '#d1d5db';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(lastPtX, lastY, 2, 0, Math.PI*2);
+  ctx.fillStyle = '#d1d5db';
+  ctx.fill();
+
+  // Label
+  ctx.font = '500 10px Inter, sans-serif';
+  ctx.fillStyle = '#bbb';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('\u{1F353} CPL', lastPtX + 10, lastY);
+}
+
+// ── Creative modal (video player) ───────────────────────────────
+const CREATIVE_MAP = {
+  's1':  '/static/creatives/s1.mov',
+  's2a': '/static/creatives/s2a.mov',
+  's2b': '/static/creatives/s2b.mov',
+};
+function adNameToKey(name) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('one time') || n.includes('s1')) return 's1';
+  if (n.includes('s2b') || (n.includes('never remember') && n.includes('b'))) return 's2b';
+  if (n.includes('s2a') || (n.includes('never remember') && n.includes('a'))) return 's2a';
+  if (n.includes('never remember')) return 's2a';
+  return null;
+}
+function openCreative(adId, adName) {
+  const video = document.getElementById('modal-video');
+  const noVid = document.getElementById('modal-no-video');
+  const wrap  = document.getElementById('modal-video-wrap');
+  document.getElementById('modal-ad-name').textContent = adName;
+  const key = adNameToKey(adName);
+  const src = key ? CREATIVE_MAP[key] : null;
+  if (src) {
+    video.src = src;
+    video.style.display = 'block';
+    wrap.style.display = 'block';
+    noVid.style.display = 'none';
+    video.play();
+  } else {
+    video.pause();
+    video.src = '';
+    video.style.display = 'none';
+    wrap.style.display = 'none';
+    noVid.style.display = 'block';
+  }
+  document.getElementById('creative-modal').classList.add('show');
+}
+function closeCreative() {
+  const video = document.getElementById('modal-video');
+  video.pause();
+  video.src = '';
+  document.getElementById('creative-modal').classList.remove('show');
+}
+document.getElementById('modal-close-btn').addEventListener('click', closeCreative);
+document.getElementById('creative-modal').addEventListener('click', function(e) { if (e.target === this) closeCreative(); });
+
+// ── Date filter ─────────────────────────────────────────────────
+function toYMD(d){return d.toISOString().slice(0,10);}
+function dateRange(preset){
+  const today=new Date();today.setHours(0,0,0,0);
+  if(preset==='max')return[null,null];
+  if(preset==='today')return[toYMD(today),toYMD(today)];
+  if(preset==='yesterday'){const y=new Date(today);y.setDate(y.getDate()-1);return[toYMD(y),toYMD(y)];}
+  if(preset==='7d'){const f=new Date(today);f.setDate(f.getDate()-6);return[toYMD(f),toYMD(today)];}
+  if(preset==='30d'){const f=new Date(today);f.setDate(f.getDate()-29);return[toYMD(f),toYMD(today)];}
+  return[null,null];
+}
+function filterRows(rows,from,to){if(!from&&!to)return rows;return rows.filter(r=>r.date&&r.date>=from&&r.date<=to);}
+function fmt(n,d=2){return n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtCompact(n){if(n>=1000000)return '$'+(n/1000000).toFixed(1)+'M';if(n>=10000)return '$'+(n/1000).toFixed(1)+'K';if(n>=1000){const k=Math.floor(n/10)/100;return '$'+k.toFixed(2)+'K';}return '$'+fmt(n);}
+
+function updateKPIs(from,to){
+  const metaSrc  = VIEW_MODE==='live' ? RAW_META_LIVE  : RAW_META_PAST;
+  const leadsSrc = VIEW_MODE==='live' ? RAW_LEADS_LIVE : RAW_LEADS_PAST;
+
+  const meta  = filterRows(metaSrc, from, to);
+  const leads = filterRows(leadsSrc, from, to);
+
+  document.getElementById('kpi-leads').textContent = leads.length.toLocaleString();
+  const rawSpend = meta.reduce((s,r)=>s+r.spend,0);
+  document.getElementById('kpi-spend').textContent = fmtCompact(rawSpend);
+  document.getElementById('kpi-impressions').textContent = meta.reduce((s,r)=>s+r.impressions,0).toLocaleString();
+  document.getElementById('kpi-clicks').textContent = meta.reduce((s,r)=>s+r.clicks,0).toLocaleString();
+  const avgCtr = meta.length ? meta.reduce((s,r)=>s+r.ctr,0)/meta.length : 0;
+  const avgCpc = meta.length ? meta.reduce((s,r)=>s+r.cpc,0)/meta.length : 0;
+  const avgCpm = meta.length ? meta.reduce((s,r)=>s+r.cpm,0)/meta.length : 0;
+  document.getElementById('kpi-ctr').textContent = fmt(avgCtr)+'%';
+  document.getElementById('kpi-cpc').textContent = '$'+fmt(avgCpc);
+  document.getElementById('kpi-cpm').textContent = '$'+fmt(avgCpm);
+  // CTR gauge
+  const ctrGaugeArc = document.getElementById('ctr-gauge-arc');
+  const ctrGaugeVal = document.getElementById('ctr-gauge-val');
+  if (ctrGaugeArc) {
+    const ctrCircum = 175.93;
+    const ctrCapped = Math.min(avgCtr / 8, 1); // 8% = full ring
+    ctrGaugeArc.style.strokeDashoffset = ctrCircum * (1 - ctrCapped);
+    ctrGaugeArc.style.stroke = avgCtr >= 3 ? 'var(--green)' : avgCtr >= 1.5 ? '#111' : avgCtr > 0 ? '#eab308' : '#e5e7eb';
+    ctrGaugeVal.textContent = fmt(avgCtr) + '%';
+    ctrGaugeVal.style.color = avgCtr >= 3 ? 'var(--green)' : '#111';
+  }
+
+  // CPC bar (scale: $5 = full bar)
+  const cpcBar = document.getElementById('cpc-bar');
+  if (cpcBar) {
+    const cpcPct = Math.min(avgCpc / 5, 1) * 100;
+    cpcBar.style.width = cpcPct + '%';
+    cpcBar.style.background = avgCpc <= 1 ? 'var(--green)' : avgCpc <= 3 ? '#111' : '#dc2626';
+  }
+
+  // CPM bar (scale: $50 = full bar)
+  const cpmBar = document.getElementById('cpm-bar');
+  if (cpmBar) {
+    const cpmPct = Math.min(avgCpm / 50, 1) * 100;
+    cpmBar.style.width = cpmPct + '%';
+    cpmBar.style.background = avgCpm <= 15 ? 'var(--green)' : avgCpm <= 30 ? '#111' : '#dc2626';
+  }
+
+  // Leads sub-text
+  document.getElementById('kpi-leads-sub').innerHTML = leads.length===0
+    ? '<div class="thought-bubble"><span class="bubble-dot"></span>warming up...</div>'
+    : '<p class="metric-sub">Inbound inquiries</p>';
+
+  document.getElementById('kpi-leads-label').textContent = 'Leads';
+
+  // Lead value color: green if leads > 0
+  const leadsEl = document.getElementById('kpi-leads');
+  leadsEl.className = leads.length > 0 ? 'metric-value-green mt-2' : 'metric-value mt-2';
+
+  // Recent Leads list
+  const recentLeadsCard = document.getElementById('recent-leads-card');
+  const recentLeadsItems = document.getElementById('recent-leads-items');
+  if (leads.length > 0) {
+    recentLeadsCard.style.display = '';
+    const sortedLeads = [...leads].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const showLeads = sortedLeads.slice(0, 5);
+    recentLeadsItems.innerHTML = showLeads.map(l => {
+      const isTest = l.is_test || false;
+      const initials = l.name ? l.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) : '?';
+      const avatarClass = isTest ? 'conv-avatar-gray' : 'conv-avatar-green';
+      return `<div class="conv-item">
+        <div class="conv-avatar ${avatarClass}">${isTest ? '🔧' : initials}</div>
+        <div style="flex:1;min-width:0;">
+          <p class="text-sm font-medium truncate" style="color:${isTest ? '#9ca3af' : '#111'};">${l.name || 'Unknown'}${isTest ? ' <span style="font-size:10px;color:#bbb;">(test)</span>' : ''}</p>
+          <p style="font-size:11px;color:#bbb;">${l.date || ''}</p>
+        </div>
+        <div style="text-align:right;">
+          <span style="font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;display:inline-block;${isTest ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;' : 'background:var(--green-pale);color:var(--green);border:1px solid var(--green-border);'}">${isTest ? 'Test' : 'Lead'}</span>
+        </div>
+      </div>`;
+    }).join('');
+    if (sortedLeads.length > 5) {
+      recentLeadsItems.innerHTML += `<p style="text-align:center;font-size:11px;color:#bbb;padding:8px 0;">+${sortedLeads.length - 5} more</p>`;
+    }
+  } else {
+    recentLeadsCard.style.display = 'none';
+  }
+
+  // Cost per lead card + sparkline
+  const cplCard = document.getElementById('kpi-cpl-card');
+  const cplSparkCard = document.getElementById('kpi-cpl-spark-card');
+  const trendBadge = document.getElementById('cpl-trend-badge');
+  const sub = document.getElementById('cpl-sub');
+  const cplEl = document.getElementById('kpi-cpl');
+  const totalSpendCPL = meta.reduce((s,r)=>s+r.spend,0);
+
+  if (leads.length > 0) {
+    cplCard.style.display = '';
+    const cpl = totalSpendCPL / leads.length;
+    cplEl.textContent = '$'+fmt(cpl);
+    cplEl.style.color = '#111';
+    sub.textContent = '';
+
+    // Build weekly CPL trend
+    const weekMap = {}, leadWeekMap = {};
+    meta.forEach(r => { if(r.date) { const w = r.date.slice(0,7); weekMap[w] = (weekMap[w]||0) + r.spend; }});
+    leads.forEach(r => { if(r.date) { const w = r.date.slice(0,7); leadWeekMap[w] = (leadWeekMap[w]||0) + 1; }});
+    const weeks = [...new Set([...Object.keys(weekMap), ...Object.keys(leadWeekMap)])].sort();
+    const cplTrend = weeks.map(w => { const s=weekMap[w]||0, l=leadWeekMap[w]||0; return l>0?s/l:null; }).filter(v=>v!==null);
+
+    cplSparkCard.style.display = 'none'; // hide placeholder when we have data
+
+    if (VIEW_MODE === 'past') {
+      trendBadge.textContent = '\u2193';
+      trendBadge.style.background = 'var(--green-pale)';
+      trendBadge.style.color = 'var(--green)';
+      const steps = 8;
+      const finalCPL = totalSpendCPL / leads.length;
+      const pastCPLTrend = [];
+      for (let i = 1; i <= steps; i++) {
+        const leadsAtPoint = Math.ceil(i / steps * leads.length);
+        pastCPLTrend.push(totalSpendCPL / leadsAtPoint);
+      }
+      drawCPLSpark(pastCPLTrend, false, finalCPL);
+    } else if (cplTrend.length >= 2) {
+      const down = cplTrend[cplTrend.length-1] <= cplTrend[0];
+      trendBadge.textContent = down ? '\u2193' : '\u2191';
+      trendBadge.style.background = down ? 'var(--green-pale)' : '#fff0f0';
+      trendBadge.style.color = down ? 'var(--green)' : '#dc2626';
+      drawCPLSpark(cplTrend, true);
+    } else {
+      trendBadge.textContent = '';
+      drawCPLSpark([], true);
+    }
+  } else if (VIEW_MODE === 'live') {
+    cplCard.style.display = 'none'; // hide real CPL card
+    cplSparkCard.style.display = ''; // show placeholder
+    drawCPLSparkPlaceholder();
+  } else {
+    cplCard.style.display = 'none';
+    cplSparkCard.style.display = 'none';
+  }
+}
+
+function setFilter(preset,btn){
+  document.querySelectorAll('.df-pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  const pop=document.getElementById('date-popover');
+  if(preset==='custom'){pop.classList.toggle('show');return;}
+  pop.classList.remove('show');
+  const[from,to]=dateRange(preset);
+  updateKPIs(from,to);
+  updateLeadHealth(from,to);
+}
+function applyCustom(){
+  const from=document.getElementById('df-from').value;
+  const to=document.getElementById('df-to').value||from;
+  document.getElementById('date-popover').classList.remove('show');
+  if(from){updateKPIs(from,to);updateLeadHealth(from,to);}
+}
+document.addEventListener('click',e=>{
+  const pop=document.getElementById('date-popover');
+  if(pop&&!pop.contains(e.target)&&!e.target.closest('.df-pill'))pop.classList.remove('show');
+});
+
+// ── Mobile accordion ────────────────────────────────────────────
+function togglePanel(id){
+  const panel=document.getElementById(id),chev=document.getElementById(id+'-chev');
+  if(!panel)return;
+  const isOpen=panel.classList.contains('open');
+  panel.classList.toggle('open',!isOpen);
+  if(chev)chev.classList.toggle('open',!isOpen);
+}
+
+// ── Sauce Advisor ────────────────────────────────────────────────
+function buildInsights() {
+  const liveAds  = LIVE_ADS;
+  const pastAds  = PAST_ADS;
+  const liveLeads = RAW_LEADS_LIVE.length;
+  const pastLeads = RAW_LEADS_PAST.length;
+  const isLive    = IS_LIVE;
+
+  const insights = [];
+
+  if (!isLive) {
+    insights.push({type:'info', label:'Status', text:"Active Campaign campaign is under construction. The moment Meta sends live performance data, everything goes green."});
+  } else {
+    insights.push({type:'win', label:'Live', text:"Active Campaign is live and data is flowing. Check back as the numbers build."});
+  }
+
+  // Past campaign insights
+  const topPastAd = pastAds.length ? pastAds[0] : null;
+  if (topPastAd && topPastAd.leads > 0) {
+    insights.push({type:'win', label:'Past Campaign MVP', text:`"${topPastAd.ad_name}" drove ${topPastAd.leads} leads in the Past Campaign campaign. That creative is your benchmark.`});
+  }
+  if (pastLeads > 0) {
+    insights.push({type:'info', label:'Past Data', text:`${pastLeads} leads from Past Campaign are saved under "View Past Campaigns." Your new Active Campaign campaign starts fresh.`});
+  }
+
+  // Revenue insights
+  const convData = VIEW_MODE === 'live' ? LIVE_CONV : PAST_CONV;
+  const totalRev = convData.reduce((s,c) => s + c.revenue, 0);
+  const numConv = convData.filter(c => c.converted).length;
+  const metaData = VIEW_MODE === 'live' ? RAW_META_LIVE : RAW_META_PAST;
+  const totalSp = metaData.reduce((s,r) => s + r.spend, 0);
+  const currentROAS = totalSp > 0 ? totalRev / totalSp : 0;
+
+  if (totalRev > 0) {
+    insights.push({type:'win', label:'Revenue', text:`$${totalRev.toLocaleString('en-US',{minimumFractionDigits:2})} in revenue from ${numConv} converted lead${numConv!==1?'s':''}. ROAS is ${currentROAS.toFixed(1)}x.`});
+    if (currentROAS >= 3) {
+      insights.push({type:'win', label:'Strong ROAS', text:`${currentROAS.toFixed(1)}x return — every dollar spent is generating $${currentROAS.toFixed(2)} back. The funnel is working.`});
+    } else if (currentROAS >= 1) {
+      insights.push({type:'info', label:'ROAS Building', text:`${currentROAS.toFixed(1)}x return — you're profitable. As more leads convert, this number will climb.`});
+    } else if (currentROAS > 0) {
+      insights.push({type:'soon', label:'ROAS Below 1x', text:`Current ROAS is ${currentROAS.toFixed(1)}x. Early stage — conversions take time. Monitor as more leads move through the pipeline.`});
+    }
+  } else if (convData.length > 0) {
+    insights.push({type:'info', label:'Pipeline Active', text:`${convData.length} lead${convData.length!==1?'s':''} in the pipeline but no revenue yet. Conversions take time — watch this space.`});
+  }
+
+  insights.push({type:'soon', label:'Coming Soon', text:"Once Active Campaign has live data, I'll start giving you real creative breakdowns and audience insights."});
+
+  return insights;
+}
+
+function toggleSauce() {
+  const panel = document.getElementById('sauce-panel');
+  const isShowing = panel.classList.contains('show');
+  if (!isShowing) {
+    const container = document.getElementById('sauce-insights');
+    container.innerHTML = buildInsights().map(i => `
+      <div class="sauce-insight sauce-${i.type}">
+        <p class="sauce-insight-label">${i.label}</p>
+        <p>${i.text}</p>
+      </div>`).join('');
+  }
+  panel.classList.toggle('show', !isShowing);
+}
+document.addEventListener('click', e => {
+  const panel = document.getElementById('sauce-panel');
+  const btn   = document.getElementById('sauce-btn');
+  if (!panel.contains(e.target) && !btn.contains(e.target)) panel.classList.remove('show');
+});
+
+// ── Lead Health ──────────────────────────────────────────────────
+function updateLeadHealth(from, to) {
+  const section = document.getElementById('lead-health-section');
+  const convSrc  = VIEW_MODE === 'live' ? LIVE_CONV : PAST_CONV;
+  const leadsSrc = VIEW_MODE === 'live' ? RAW_LEADS_LIVE : RAW_LEADS_PAST;
+  const metaSrc  = VIEW_MODE === 'live' ? RAW_META_LIVE : RAW_META_PAST;
+
+  // Always show section when live, or when past has data
+  if (VIEW_MODE === 'live' || convSrc.length > 0 || leadsSrc.length > 0) {
+    section.style.display = '';
+  } else {
+    section.style.display = 'none';
+    return;
+  }
+
+  const conv  = filterRows(convSrc, from, to);
+  const leads = filterRows(leadsSrc, from, to);
+  const meta  = filterRows(metaSrc, from, to);
+
+  const totalLeads = leads.length;
+  const converted  = conv.filter(c => c.converted);
+  const numConverted = converted.length;
+  const totalRevenue = conv.reduce((s, c) => s + c.revenue, 0);
+  const totalOpportunity = conv.reduce((s, c) => s + (c.opportunity || 0), 0);
+  const totalSpend   = meta.reduce((s, r) => s + r.spend, 0);
+  const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+  const convRate = totalLeads > 0 ? (numConverted / totalLeads * 100) : 0;
+
+  // Revenue
+  document.getElementById('health-revenue').textContent = '$' + totalRevenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('health-revenue').className = totalRevenue > 0 ? 'metric-value-green mt-2' : 'metric-value mt-2';
+  document.getElementById('health-revenue-sub').textContent = numConverted > 0
+    ? numConverted + ' converted job' + (numConverted !== 1 ? 's' : '')
+    : 'From converted leads';
+
+
+  // ROAS
+  const roasVal = document.getElementById('roas-val');
+  if (totalRevenue > 0 && totalSpend === 0) {
+    roasVal.textContent = '\u221e';
+    roasVal.style.color = 'var(--green)';
+    roasVal.style.fontSize = '18px';
+    document.getElementById('roas-sub').textContent = 'Revenue before spend data';
+  } else if (totalSpend > 0) {
+    roasVal.textContent = roas.toFixed(2) + 'x';
+    roasVal.style.color = roas >= 3 ? 'var(--green)' : roas >= 1 ? '#111' : '#dc2626';
+    roasVal.style.fontSize = '18px';
+    document.getElementById('roas-sub').innerHTML = '<span style="color:var(--green);font-weight:600;">$' + fmtCompact(totalRevenue).replace('$','') + '</span> <span style="color:#bbb;">on</span> <span style="font-weight:600;">$' + fmtCompact(totalSpend).replace('$','') + '</span>';
+  } else {
+    roasVal.textContent = '0.00x';
+    roasVal.style.color = '#d1d5db';
+    roasVal.style.fontSize = '18px';
+    document.getElementById('roas-sub').textContent = 'Return on ad spend';
+  }
+
+  // ROAS ring animation
+  const arc = document.getElementById('roas-arc');
+  const circumference = 175.93;
+  const roasForRing = (totalRevenue > 0 && totalSpend === 0) ? 5 : roas;
+  const roasCapped = Math.min(roasForRing / 5, 1);
+  arc.style.strokeDashoffset = circumference * (1 - roasCapped);
+  arc.style.stroke = (totalRevenue > 0 && totalSpend === 0) ? 'var(--green)' : roas >= 3 ? 'var(--green)' : roas >= 1 ? '#111' : roas > 0 ? '#eab308' : '#e5e7eb';
+  arc.style.transition = 'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .3s';
+
+  // Converted count
+  document.getElementById('health-converted').textContent = numConverted;
+  document.getElementById('health-converted').style.color = numConverted > 0 ? 'var(--green)' : '#111';
+  document.getElementById('health-conv-sub').textContent = conv.length > 0
+    ? conv.length + ' total in pipeline'
+    : 'Closed leads';
+
+  // Conversion rate
+  document.getElementById('health-conv-rate').textContent = convRate > 0 ? convRate.toFixed(1) + '%' : '0%';
+  document.getElementById('health-conv-rate').style.color = convRate >= 20 ? 'var(--green)' : convRate >= 10 ? '#111' : convRate > 0 ? '#854d0e' : '#111';
+  document.getElementById('health-rate-sub').textContent = totalLeads > 0
+    ? numConverted + ' of ' + totalLeads + ' leads'
+    : 'Leads that converted';
+
+  // Funnel bar
+  document.getElementById('funnel-leads').style.width = '100%';
+  document.getElementById('funnel-conv').style.width = totalLeads > 0 ? (numConverted / totalLeads * 100) + '%' : '0%';
+  document.getElementById('funnel-ratio').textContent = numConverted + ' / ' + totalLeads;
+
+  // Health badge
+  const badge = document.getElementById('health-badge');
+
+  if (VIEW_MODE === 'past') {
+    badge.className = 'health-status health-cold';
+    badge.innerHTML = 'Campaign Complete';
+  } else if (numConverted > 0 && roas >= 1) {
+    badge.className = 'health-status health-healthy';
+    badge.innerHTML = '<span class="health-dot health-dot-green"></span>Printing';
+  } else if (numConverted > 0) {
+    badge.className = 'health-status health-converting';
+    badge.innerHTML = '<span class="health-dot health-dot-green"></span>Converting';
+  } else if (totalLeads > 0) {
+    badge.className = 'health-status health-warming';
+    badge.innerHTML = '<span class="health-dot health-dot-green"></span>Pipeline Active';
+  } else {
+    badge.className = 'health-status health-cold';
+    badge.innerHTML = '<span class="health-dot health-dot-gray"></span>Standby';
+  }
+
+  // Recent conversions list
+  const listWrap = document.getElementById('health-conv-list');
+  const emptyWrap = document.getElementById('health-empty');
+  const listItems = document.getElementById('conv-list-items');
+
+  if (conv.length > 0) {
+    listWrap.style.display = '';
+    emptyWrap.style.display = 'none';
+
+    const sorted = [...conv].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const show = sorted.slice(0, 5);
+    listItems.innerHTML = show.map(c => {
+      const initials = c.name ? c.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) : '?';
+      const isConv = c.converted;
+      const isOpp = c.is_opportunity;
+      const isTest = c.is_test || false;
+      const avatarContent = isConv ? '&#127827;' : initials;
+      const avatarClass = isTest ? 'conv-avatar-gray' : isConv ? 'conv-avatar-green' : isOpp ? 'conv-avatar-amber' : 'conv-avatar-gray';
+      const statusLabel = isTest ? 'Test' : c.lead_status || (isConv ? 'Converted' : 'In Pipeline');
+      const statusBadgeStyle = isTest
+        ? 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;'
+        : isConv
+        ? 'background:var(--green-pale);color:var(--green);border:1px solid var(--green-border);'
+        : isOpp
+        ? 'background:#fefce8;color:#854d0e;border:1px solid #fde047;'
+        : 'background:#f3f4f6;color:#9ca3af;border:1px solid #e5e7eb;';
+      const dollarAmt = isConv ? c.revenue : isOpp ? c.opportunity : 0;
+      const revenueText = (!isTest && dollarAmt > 0) ? '$' + dollarAmt.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
+      return `<div class="conv-item">
+        <div class="conv-avatar ${avatarClass}">${isTest ? '🔧' : avatarContent}</div>
+        <div style="flex:1;min-width:0;">
+          <p class="text-sm font-medium truncate" style="color:${isTest ? '#9ca3af' : '#111'};">${c.name || 'Unknown'}${isTest ? ' <span style="font-size:10px;color:#bbb;">(test)</span>' : ''}</p>
+          <p style="font-size:11px;color:#bbb;">${c.date || ''}</p>
+        </div>
+        <div style="text-align:right;">
+          ${revenueText ? `<p style="font-size:13px;font-weight:700;color:${isConv ? 'var(--green)' : '#d97706'};">${revenueText}</p>` : ''}
+          <span style="font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;display:inline-block;${statusBadgeStyle}">${statusLabel}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    if (sorted.length > 5) {
+      listItems.innerHTML += `<p style="text-align:center;font-size:11px;color:#bbb;padding:8px 0;">+${sorted.length - 5} more</p>`;
+    }
+  } else {
+    listWrap.style.display = 'none';
+    emptyWrap.style.display = '';
+  }
+}
+
+// ── Initial render ──────────────────────────────────────────────
+showBanner('live');
+updateKPIs(null, null);
+updateLeadHealth(null, null);
+renderAds(LIVE_ADS);
+
+// ── Auto-refresh every 5 mins ────────────────────────────────────
+setTimeout(()=>location.reload(), 5*60*1000);
+</script>
+</body>
+</html>

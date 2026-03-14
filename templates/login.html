@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lumen — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --purple:#6128DB; --purple-dark:#4e1fb3; --purple-pale:#f3eeff; --purple-border:#d4bfff; --purple-muted:#9580b8; }
+    * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+    body { background:#faf9fc; min-height:100vh; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+
+    .card { background:#fff; border:1px solid var(--purple-border); border-radius:24px; padding:40px 36px; width:100%; max-width:380px; box-shadow:0 8px 40px rgba(97,40,219,.07); transition:opacity .35s, transform .35s; position:relative; z-index:10; }
+    .card.hide { opacity:0; transform:scale(.97); pointer-events:none; }
+    .logo-wrap { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:20px; }
+    .logo-wrap img { height:36px; }
+    h1 { font-size:22px; font-weight:700; color:#111; text-align:center; margin-bottom:6px; }
+    .sub { font-size:14px; color:var(--purple-muted); text-align:center; margin-bottom:28px; }
+
+    label { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--purple-muted); display:block; margin-bottom:6px; }
+    input { width:100%; padding:12px 14px; border:1px solid var(--purple-border); border-radius:12px; font-size:14px; color:#111; background:#fff; outline:none; transition:border .2s, box-shadow .2s; }
+    input:focus { border-color:var(--purple); box-shadow:0 0 0 3px rgba(97,40,219,.1); }
+    .input-group { margin-bottom:16px; }
+    #name-group { overflow:hidden; max-height:0; opacity:0; transition:max-height .4s ease, opacity .3s ease; }
+    #name-group.visible { max-height:80px; opacity:1; }
+    .btn { width:100%; padding:13px; border-radius:12px; background:var(--purple); color:#fff; font-size:14px; font-weight:600; border:none; cursor:pointer; margin-top:4px; transition:background .2s, transform .1s; }
+    .btn:hover { background:var(--purple-dark); }
+    .btn:active { transform:scale(.98); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .hint { font-size:12px; color:var(--purple-muted); text-align:center; margin-top:14px; }
+    .error-msg { font-size:13px; color:#dc2626; text-align:center; margin-top:10px; display:none; }
+
+    #overlay {
+      position:fixed; inset:0; z-index:200; background:#fff;
+      display:none; align-items:center; justify-content:center;
+      overflow:hidden;
+    }
+    #overlay.show { display:flex; }
+
+    #particle-canvas { position:absolute; inset:0; width:100%; height:100%; }
+
+    #welcome-content {
+      position:absolute; inset:0; z-index:3;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+      opacity:0; pointer-events:none;
+      transform:translateY(28px);
+      transition:opacity .6s ease, transform .6s cubic-bezier(.25,.8,.25,1);
+    }
+    #welcome-content.in { opacity:1; transform:translateY(0); }
+    .wf-logo { height:40px; margin-bottom:6px; }
+    #wf-headline { font-size:42px; font-weight:700; color:#111; letter-spacing:-.02em; line-height:1.1; opacity:0; transition:opacity .4s .18s; max-width:340px; text-align:center; }
+    #welcome-content.in #wf-headline { opacity:1; }
+    #wf-quip { font-size:14px; color:var(--purple-muted); max-width:260px; text-align:center; line-height:1.55; padding:0 16px; opacity:0; transition:opacity .4s .3s; margin-top:6px; }
+    #welcome-content.in #wf-quip { opacity:1; }
+  </style>
+</head>
+<body>
+
+<div class="card" id="login-card">
+  <div class="logo-wrap" style="margin-bottom:20px;">
+    <img src="/static/lumen-logo.png" alt="Lumen" style="height:36px;" onerror="this.style.display='none'"/>
+  </div>
+  <p class="sub" style="margin-bottom:28px;">Performance Dashboard</p>
+
+  <div class="input-group">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
+  </div>
+  <div class="input-group" id="name-group">
+    <label>Your Name</label>
+    <input type="text" id="name" placeholder="First name" autocomplete="given-name"/>
+  </div>
+  <button class="btn" id="submit-btn" onclick="handleSubmit()">Continue</button>
+  <p class="error-msg" id="error-msg"></p>
+  <p class="hint" id="hint-text">Enter your email to get started</p>
+</div>
+
+<div id="overlay">
+  <canvas id="particle-canvas"></canvas>
+  <div id="welcome-content">
+    <img class="wf-logo" src="/static/lumen-logo.png" alt="Lumen" onerror="this.style.display='none'"/>
+    <p id="wf-headline"></p>
+    <p id="wf-quip"></p>
+  </div>
+</div>
+
+<script>
+const QUIPS = [
+  "Your data, your advantage.",
+  "Every dollar tracked. Every decision informed.",
+  "The numbers are in.",
+  "Real metrics. Real growth.",
+  "Let's see what's working.",
+  "Performance, at a glance.",
+  "Built for clarity.",
+  "Your marketing command center.",
+  "Data-driven decisions start here.",
+  "Where the real numbers live."
+];
+
+(function() {
+  const savedEmail = localStorage.getItem('lm_email');
+  if (savedEmail) {
+    document.getElementById('email').value = savedEmail;
+    document.getElementById('login-card').style.opacity = '0';
+    submitLogin(savedEmail, '');
+  }
+})();
+
+document.getElementById('email').addEventListener('keydown', e => { if(e.key==='Enter') handleSubmit(); });
+document.getElementById('name').addEventListener('keydown',  e => { if(e.key==='Enter') handleSubmit(); });
+
+async function handleSubmit() {
+  const email = document.getElementById('email').value.trim();
+  const name  = document.getElementById('name').value.trim();
+  if (!email) { showError('Please enter your email.'); return; }
+  document.getElementById('error-msg').style.display = 'none';
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '...';
+  await submitLogin(email, name);
+  btn.disabled = false; btn.textContent = 'Continue';
+}
+
+async function submitLogin(email, name) {
+  const res  = await fetch('/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,name}) });
+  const data = await res.json();
+  if (!data.ok && data.needs_name) {
+    document.getElementById('login-card').style.opacity = '1';
+    document.getElementById('name-group').classList.add('visible');
+    document.getElementById('name').focus();
+    document.getElementById('hint-text').textContent = "Almost there — just your first name.";
+    document.getElementById('submit-btn').textContent = 'Create Account';
+    return;
+  }
+  if (!data.ok) { showError(data.error || 'Something went wrong.'); return; }
+  localStorage.setItem('lm_email', email);
+  sessionStorage.setItem('skip_welcome', '1');
+  document.getElementById('login-card').classList.add('hide');
+  const today = new Date().toISOString().slice(0,10);
+  const lastAnimDay = localStorage.getItem('lm_anim_day');
+  if (data.new_user || lastAnimDay !== today) {
+    localStorage.setItem('lm_anim_day', today);
+    runParticleAnimation(data.name);
+  } else {
+    showWelcome(data.name);
+  }
+}
+
+function showError(msg) { const e=document.getElementById('error-msg'); e.textContent=msg; e.style.display='block'; }
+
+function runParticleAnimation(name) {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('show');
+  const canvas = document.getElementById('particle-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W = canvas.width  = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+
+  const PARTICLE_COUNT = 60;
+  const particles = [];
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    particles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      size: 2 + Math.random() * 4,
+      vx: (Math.random() - 0.5) * 0.8,
+      vy: (Math.random() - 0.5) * 0.8,
+      opacity: 0.12 + Math.random() * 0.2,
+    });
+  }
+
+  let startTime = Date.now();
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const elapsed = Date.now() - startTime;
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0) p.x = W;
+      if (p.x > W) p.x = 0;
+      if (p.y < 0) p.y = H;
+      if (p.y > H) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(97, 40, 219, ${p.opacity})`;
+      ctx.fill();
+    });
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 120) {
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(97, 40, 219, ${0.08 * (1 - dist/120)})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+
+    if (elapsed > 2500) {
+      canvas.style.transition = 'opacity .5s';
+      canvas.style.opacity = '0';
+      showWelcome(name);
+      return;
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  setTimeout(() => { window.location.href = '/'; }, 3500);
+}
+
+function showWelcome(name) {
+  document.getElementById('particle-canvas').style.display = 'none';
+  document.getElementById('wf-headline').textContent = 'Welcome, ' + name;
+  document.getElementById('wf-quip').textContent = QUIPS[Math.floor(Math.random()*QUIPS.length)];
+  setTimeout(() => { document.getElementById('welcome-content').classList.add('in'); }, 60);
+  if (!document.getElementById('particle-canvas').style.opacity) {
+    setTimeout(() => { window.location.href = '/'; }, 950);
+  }
+}
+</script>
+</body>
+</html>
