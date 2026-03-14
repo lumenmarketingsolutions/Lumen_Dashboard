@@ -373,7 +373,7 @@
       </div>
       <div class="date-filter-wrap">
         <div class="date-filter">
-          {% for label, val in [('Today','today'),('Yesterday','yesterday'),('Last 7 Days','7d'),('Last 30 Days','30d'),('Maximum','max'),('Custom','custom')] %}
+          {% for label, val in [('Today','today'),('Yesterday','yesterday'),('7 Days','7d'),('30 Days','30d'),('Max','max'),('Custom','custom')] %}
           <button class="df-pill {% if val=='max' %}active{% endif %}" onclick="setFilter('{{ val }}',this)">{{ label }}</button>
           {% endfor %}
         </div>
