@@ -604,5 +604,65 @@ def dashboard():
         error=error, user_name=current_user.name
     )
 
+DEMO_TOKEN = os.environ.get("DEMO_TOKEN", "lumen-demo-2026")
+
+@app.route("/demo/<token>")
+def demo_view(token):
+    """Public read-only demo view — no login required, used for iframe embeds."""
+    if token != DEMO_TOKEN:
+        return "Not found", 404
+    try:
+        live_ads, raw_meta_live, past_ads, raw_meta_past, raw_meta_retarget, retarget_ad_ids = fetch_meta_data()
+        live_leads, past_leads = fetch_leads()
+        live_conversions, past_conversions = fetch_conversions()
+
+        utm_counts_live = defaultdict(int)
+        for r in live_leads:
+            if r["utm"]: utm_counts_live[r["utm"]] += 1
+        for ad in live_ads:
+            ad["leads"] = utm_counts_live.get(ad["ad_id"], 0)
+        live_ads.sort(key=lambda x: (-x["leads"], -x["ctr"]))
+
+        utm_counts_past = defaultdict(int)
+        for r in past_leads:
+            if r["utm"]: utm_counts_past[r["utm"]] += 1
+        matched_past = 0
+        for ad in past_ads:
+            ad["leads"] = utm_counts_past.get(ad["ad_id"], 0)
+            matched_past += ad["leads"]
+        unmatched_past = len(past_leads) - matched_past
+        if unmatched_past > 0 and past_ads:
+            top_ad = max(past_ads, key=lambda a: a["spend"])
+            top_ad["leads"] += unmatched_past
+        past_ads.sort(key=lambda x: (-x["leads"], -x["ctr"]))
+
+        retarget_leads = [r for r in live_leads if r.get("utm") in retarget_ad_ids]
+        is_live = len(raw_meta_live) > 0
+        error = None
+    except Exception as exc:
+        live_ads, past_ads = [], []
+        raw_meta_live, raw_meta_past = [], []
+        raw_meta_retarget, retarget_ad_ids, retarget_leads = [], [], []
+        live_leads, past_leads = [], []
+        live_conversions, past_conversions = [], []
+        is_live = False
+        error = str(exc)
+
+    return render_template("index.html",
+        live_ads=live_ads, past_ads=past_ads,
+        live_leads=live_leads, past_leads=past_leads,
+        live_conversions=live_conversions, past_conversions=past_conversions,
+        raw_meta_live=raw_meta_live, raw_meta_past=raw_meta_past,
+        raw_meta_retarget=raw_meta_retarget, retarget_ad_ids=retarget_ad_ids,
+        retarget_leads=retarget_leads,
+        is_live=is_live, launch_date=LAUNCH_DATE,
+        error=error, user_name="Demo"
+    )
+
+@app.after_request
+def allow_iframe(response):
+    response.headers.pop('X-Frame-Options', None)
+    return response
+
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
