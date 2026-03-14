@@ -155,58 +155,144 @@ function runParticleAnimation(name) {
   const ctx    = canvas.getContext('2d');
   let W = canvas.width  = window.innerWidth;
   let H = canvas.height = window.innerHeight;
+  const cx = W / 2, cy = H / 2;
 
-  const PARTICLE_COUNT = 60;
+  const PARTICLE_COUNT = 140;
   const particles = [];
 
+  // Multiple purple shades for depth
+  const colors = [
+    [97, 40, 219],   // primary purple
+    [130, 70, 230],  // lighter purple
+    [75, 20, 180],   // deeper purple
+    [160, 100, 255], // soft lavender
+    [50, 10, 140],   // dark violet
+  ];
+
   for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * Math.max(W, H) * 0.6;
+    const color = colors[Math.floor(Math.random() * colors.length)];
     particles.push({
-      x: Math.random() * W,
-      y: Math.random() * H,
-      size: 2 + Math.random() * 4,
-      vx: (Math.random() - 0.5) * 0.8,
-      vy: (Math.random() - 0.5) * 0.8,
-      opacity: 0.12 + Math.random() * 0.2,
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      size: 1.5 + Math.random() * 5,
+      baseSize: 1.5 + Math.random() * 5,
+      vx: (Math.random() - 0.5) * 1.2,
+      vy: (Math.random() - 0.5) * 1.2,
+      opacity: 0.15 + Math.random() * 0.35,
+      color: color,
+      pulseSpeed: 0.5 + Math.random() * 2,
+      pulseOffset: Math.random() * Math.PI * 2,
+      orbitRadius: 20 + Math.random() * 40,
+      orbitSpeed: (Math.random() - 0.5) * 0.008,
+      orbitAngle: Math.random() * Math.PI * 2,
     });
   }
 
+  // Gravity wells that pull particles gently
+  const wells = [
+    { x: cx, y: cy, strength: 0.00015 },
+    { x: cx - W * 0.25, y: cy - H * 0.2, strength: 0.00008 },
+    { x: cx + W * 0.25, y: cy + H * 0.2, strength: 0.00008 },
+  ];
+
   let startTime = Date.now();
+  let mouse = { x: cx, y: cy };
+  canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
   function draw() {
-    ctx.clearRect(0, 0, W, H);
     const elapsed = Date.now() - startTime;
+    const t = elapsed * 0.001;
+
+    // Soft fade trail instead of full clear
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(0, 0, W, H);
 
     particles.forEach(p => {
-      p.x += p.vx;
-      p.y += p.vy;
-      if (p.x < 0) p.x = W;
-      if (p.x > W) p.x = 0;
-      if (p.y < 0) p.y = H;
-      if (p.y > H) p.y = 0;
+      // Gentle orbit drift
+      p.orbitAngle += p.orbitSpeed;
+      const ox = Math.cos(p.orbitAngle) * p.orbitRadius * 0.02;
+      const oy = Math.sin(p.orbitAngle) * p.orbitRadius * 0.02;
 
+      // Gravity wells
+      wells.forEach(w => {
+        const dx = w.x - p.x;
+        const dy = w.y - p.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        p.vx += (dx / dist) * w.strength * dist;
+        p.vy += (dy / dist) * w.strength * dist;
+      });
+
+      // Mouse repulsion
+      const mdx = p.x - mouse.x;
+      const mdy = p.y - mouse.y;
+      const mDist = Math.sqrt(mdx*mdx + mdy*mdy);
+      if (mDist < 150) {
+        const force = (150 - mDist) * 0.0008;
+        p.vx += (mdx / mDist) * force;
+        p.vy += (mdy / mDist) * force;
+      }
+
+      // Damping
+      p.vx *= 0.995;
+      p.vy *= 0.995;
+
+      p.x += p.vx + ox;
+      p.y += p.vy + oy;
+
+      // Wrap
+      if (p.x < -50) p.x = W + 50;
+      if (p.x > W + 50) p.x = -50;
+      if (p.y < -50) p.y = H + 50;
+      if (p.y > H + 50) p.y = -50;
+
+      // Pulse size
+      p.size = p.baseSize + Math.sin(t * p.pulseSpeed + p.pulseOffset) * 1.5;
+
+      // Glow effect
+      const [r, g, b] = p.color;
+      const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.8})`);
+      gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.3})`);
+      gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Core dot
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(97, 40, 219, ${p.opacity})`;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.opacity})`;
       ctx.fill();
     });
 
+    // Connection lines with gradient
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 120) {
+        if (dist < 150) {
+          const alpha = 0.12 * (1 - dist/150);
+          const [r1, g1, b1] = particles[i].color;
+          const [r2, g2, b2] = particles[j].color;
+          const grad = ctx.createLinearGradient(particles[i].x, particles[i].y, particles[j].x, particles[j].y);
+          grad.addColorStop(0, `rgba(${r1}, ${g1}, ${b1}, ${alpha})`);
+          grad.addColorStop(1, `rgba(${r2}, ${g2}, ${b2}, ${alpha})`);
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(97, 40, 219, ${0.08 * (1 - dist/120)})`;
-          ctx.lineWidth = 1;
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 0.8;
           ctx.stroke();
         }
       }
     }
 
-    if (elapsed > 2500) {
-      canvas.style.transition = 'opacity .5s';
+    if (elapsed > 3500) {
+      canvas.style.transition = 'opacity .8s';
       canvas.style.opacity = '0';
       showWelcome(name);
       return;
@@ -216,7 +302,7 @@ function runParticleAnimation(name) {
   }
   requestAnimationFrame(draw);
 
-  setTimeout(() => { window.location.href = '/'; }, 3500);
+  setTimeout(() => { window.location.href = '/'; }, 4500);
 }
 
 function showWelcome(name) {
