@@ -180,7 +180,7 @@ def rows_by_header(worksheet):
         result.append(d)
     return result
 
-LAUNCH_DATE = "2026-03-11"   # campaign go-live date
+LAUNCH_DATE = "2026-02-01"   # campaign go-live date
 
 # ── Meta Marketing API ────────────────────────────────────────────────────────
 META_ACCESS_TOKEN  = os.environ.get("META_ACCESS_TOKEN", "")
@@ -188,11 +188,46 @@ META_AD_ACCOUNT    = os.environ.get("META_AD_ACCOUNT", "")
 META_CACHE_SECONDS = int(os.environ.get("META_CACHE_SECONDS", "3600"))  # 1 hour
 
 
+def fetch_meta_from_sheet():
+    """Fallback: read Meta-style data from Meta_Test_Data sheet tab."""
+    try:
+        ws = open_sheet().worksheet("Meta_Test_Data")
+        all_values = ws.get_all_values()
+        if len(all_values) <= 1:
+            return []
+        headers = [h.strip().lower() for h in all_values[0]]
+        rows = []
+        for row in all_values[1:]:
+            if not any(c.strip() for c in row):
+                continue
+            d = {}
+            for i, h in enumerate(headers):
+                d[h] = row[i] if i < len(row) else ""
+            # Map to Meta API format
+            rows.append({
+                "ad_id": d.get("ad_id", ""),
+                "ad_name": d.get("ad_name", ""),
+                "campaign_name": d.get("campaign_name", ""),
+                "date_start": parse_date(d.get("date", "")),
+                "spend": d.get("spend", "0"),
+                "impressions": d.get("impressions", "0"),
+                "clicks": d.get("clicks", "0"),
+                "ctr": d.get("ctr", "0"),
+                "cpc": d.get("cpc", "0"),
+                "cpm": d.get("cpm", "0"),
+            })
+        logging.info("Loaded %d rows from Meta_Test_Data sheet", len(rows))
+        return rows
+    except Exception as e:
+        logging.warning("Meta_Test_Data sheet not found or error: %s", e)
+        return []
+
+
 def fetch_meta_api():
     """Pull all daily ad-level insights from Meta Marketing API."""
     if not META_ACCESS_TOKEN:
-        logging.warning("META_ACCESS_TOKEN not set, skipping Meta API pull")
-        return []
+        logging.info("No META_ACCESS_TOKEN, falling back to sheet data")
+        return fetch_meta_from_sheet()
 
     all_rows = []
     url = f"https://graph.facebook.com/v21.0/{META_AD_ACCOUNT}/insights"
